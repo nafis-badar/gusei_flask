@@ -370,7 +370,7 @@ def karaoke_authorize(id):
 
 @app.route("/admin/karaoke/delete/<int:id>", methods=['DELETE'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
-def delete(id):
+def karaoke_delete(id):
     sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
                                                request.remote_addr)
     if (sessionID is None or len(sessionID) == 0):

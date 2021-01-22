@@ -461,4 +461,41 @@ class Dao:
         else:
             return "failed","Something went Fishy"
 
-    
+
+    def delete_karaoke(self,id,table_name1,table_name2):
+        connection = DbConnection.getDbConnection()
+        cursor = connection.cursor()
+        query_string = "select * from " + str(table_name1) + " where ID =%(id)s AND is_deleted=0"
+        cursor.execute(query_string, {"id": id})
+        is_karaoke_exist=cursor.fetchall()
+        if is_karaoke_exist is not None and len(is_karaoke_exist) > 0:
+                query_string1 =  "UPDATE " + str(table_name1) + " SET  is_deleted=1  WHERE ID = %(id)s "
+                cursor.execute(query_string1,{"id": id})
+                query_string2 = "UPDATE " + str(table_name2) + " SET  is_deleted=1  WHERE karaoke_id =%(id)s "
+                cursor.execute(query_string2,{"id": id})
+                cursor.close()
+                connection.commit()
+                return "success", "karaoke has been deleted successfully"
+        if len(is_karaoke_exist)==0:
+            query_string = "select * from " + str(table_name1) + " where ID =%(id)s AND is_deleted=1"
+            cursor.execute(query_string, {"id": id})
+            is_user_deleted = cursor.fetchall()
+            if is_user_deleted is not None and len(is_user_deleted) > 0:
+                try:
+                    query_string1 =  "UPDATE " + str(table_name1) + " SET  is_deleted=0  WHERE ID = %(id)s "
+                    cursor.execute(query_string1,{"id": id})
+                    query_string2 = "UPDATE " + str(table_name2) + " SET  is_deleted=0  WHERE karaoke_id =%(id)s "
+                    cursor.execute(query_string2,{"id": id})
+                    cursor.close()
+                    connection.commit()
+                    return "success", "karaoke has been undeleted successfully"
+
+                except Exception as e:
+                    print(e)
+                    return "Failed", "Something went wrong"
+
+                finally:
+                    if connection is not None:
+                        connection.close()
+        else:
+            return "failed","Something went Fishy"
