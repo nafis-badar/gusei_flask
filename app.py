@@ -355,5 +355,33 @@ def get_songs_detail():
         return {"message": "something went wrong", "status": 400}, 400
 
 
+@app.route("/admin/karaoke/authorize/<int:id>", methods=['GET'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def karaoke_authorize(id):
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
+    if (sessionID is None or len(sessionID) == 0):
+        return {"message": "invalid request", "status": "error"}, 401
+    status,messages = service.authorize_karaoke(id)
+    if (status == "success"):
+        return {"message": messages, "status": 200}, 200
+    else:
+        return {"message": messages, "status": 400}, 40
+
+@app.route("/admin/karaoke/delete/<int:id>", methods=['DELETE'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def delete(id):
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
+    if (sessionID is None or len(sessionID) == 0):
+        return {"message": "invalid request", "status": "error"}, 401
+    user_id = service.get_id_by_email(email)
+    status,messages = service.delete_karaoke(id)
+    if (status == "success"):
+        return {"message": messages, "status": 200}, 200
+    else:
+        return {"message": messages, "status": 400}, 400
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5010)

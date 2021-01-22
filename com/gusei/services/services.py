@@ -316,3 +316,11 @@ class Service:
     def get_song_data(self,user_id):
         status, message,data = self.dao.get_song_data(user_id)
         return status,message,data
+    
+    def authorize_karaoke(self,id):
+        status,messages=self.dao.authorize_karaoke(id,"songs")
+        return status , messages
+
+    def delete_karaoke(self,id):
+        status,messages=self.dao.delete_karaoke(id,"karaoke","songs")
+        return status , messages

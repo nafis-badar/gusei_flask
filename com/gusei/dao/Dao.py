@@ -426,3 +426,39 @@ class Dao:
         finally:
             if connection is not None:
                 connection.close()
+    
+    def authorize_karaoke(self,id,table_name):
+        connection = DbConnection.getDbConnection()
+        cursor = connection.cursor()
+        query_string = "select * from " + str(table_name) + " where karaoke_id =%(id)s AND is_authorized=0"
+        cursor.execute(query_string, {"id": id})
+        is_karaoke_exist=cursor.fetchall()
+        if is_karaoke_exist is not None and len(is_karaoke_exist) > 0:
+                authorize_query_string =  "UPDATE " + str(table_name) + " SET  is_authorized=1  WHERE karaoke_id =%(id)s "
+                cursor.execute(authorize_query_string,{"id": id})
+                cursor.close()
+                connection.commit()
+                return "success", "Karaoke authorized successfully"
+        if len(is_karaoke_exist)==0:
+            query_string = "select * from " + str(table_name) + " where karaoke_id =%(id)s AND is_authorized=1"
+            cursor.execute(query_string, {"id": id})
+            is_karaoke_authorized = cursor.fetchall()
+            if is_karaoke_authorized is not None and len(is_karaoke_authorized) > 0:
+                try:
+                    unauthorize_query_string = "UPDATE " + str(table_name) + " SET  is_authorized=0  WHERE karaoke_id =%(id)s "
+                    cursor.execute(unauthorize_query_string,{"id": id})
+                    cursor.close()
+                    connection.commit()
+                    return "success", "karaoke unauthorized successfully"
+
+                except Exception as e:
+                    print(e)
+                    return "Failed", "Something went wrong"
+
+                finally:
+                    if connection is not None:
+                        connection.close()
+        else:
+            return "failed","Something went Fishy"
+
+    
