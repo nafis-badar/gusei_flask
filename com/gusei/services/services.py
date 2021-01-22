@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from com.gusei.DefinePaths.DefinePaths import DefinePath
 from com.gusei.controller.constants.read_constants import ReadConstants
 from com.gusei.utils.utils import Utils
+from com.gusei.music.music import Music
 import json
 import os
 from flask import request
@@ -34,6 +35,7 @@ class Service:
         self.dao = Dao()
         self.utl = Utils()
         self.user=User()
+        self.mu = Music()
         # self.ist_dt = self.utl.get_ist_time()
 
     def insert_user_info(self,content,id=None):
@@ -66,11 +68,11 @@ class Service:
                 social_type_set = json.dumps(list(social_type_list))
                 social_id_set = json.dumps(list(social_id_list))
                 status, message = self.dao.insert_signup_data(fname,lname,email,crypt_password,social_type_set,
-                                                              social_id_set,phone_no,role,reg_date,
+                                                              social_id_set,id,phone_no,role,reg_date,
                                                               update_date,"user_registered")
             else:
                 status, message = self.dao.insert_signup_data(fname, lname, email, crypt_password, social_type,
-                                                              social_id, phone_no, role, reg_date,
+                                                              social_id,id, phone_no, role, reg_date,
                                                               update_date, "user_registered")
 
             return status, message
@@ -263,30 +265,54 @@ class Service:
     def karaoke_uploader(self,path,file,email):
         try:
             if self.allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+                original_filename = secure_filename(file.filename)
+                filename=self.create_filename(original_filename)
                 file.save(path+"/"+filename)
                 user_id = self.get_id_by_email(email)
-                status, message = self.dao.insert_karaoke(filename,user_id)
-                if status == "success":
-                    return "success", message
+                duration=self.mu.get_file_duration(path+"/"+filename)
+                status, message, data,audio_id= self.dao.insert_karaoke(filename,original_filename,user_id,duration)
+                if status == "success" and len(data)>0:
+                    original_filename=data[0]['original_filename']
+                    karaoke_filename= data[0]['karaoke_filename']
+                    duration=data[0]['duration']
+                    url=re.split('(http://|ftp://|https://)?[^/\?]*$',request.base_url)[0]
+                    file_url=str(url)+"karaoke/"+str(karaoke_filename)
+                    return "success", message,file_url,original_filename,audio_id,duration
                 else:
                     log.error("Exception occur when inserting db." + message)
-                    return "Failed", "Something went wrong"
+                    return "Failed", "Something went wrong","","","",""
             else:
-                return "Failed", "Please upload the correct format. We are accepting only (mp3,wave)."
+                return "Failed", "Please upload the correct format. We are accepting only (mp3,wave).","","",""
         except Exception as e:
             log.exception("")
             log.error("Exception occur when uploading karaoke " + str(e))
-            return "Failed", "Something Went wrong Please check the error logs."
+            return "Failed", "Something Went wrong Please check the error logs.","","","",""
 
     def blockUser(self, id, user_id):
         status, messages = self.user.blockUser(id, user_id, "user_login")
         return status, messages
 
-    def get_follower_list(self,id,user_id):
-            status,data=self.dao.get_follower_list(id,user_id,"follow")
-            return status,data
-    
-    def get_following_list(self,id,user_id):
-            status,data=self.dao.get_following_list(id,user_id,"follow")
-            return status,data
+    def create_filename(self,filename):
+        timestamp=self.utl.get_current_datetime_str()
+        filename=filename.split(".")
+        ext=filename[1]
+        name=filename[0]
+        timestamp=timestamp.replace(":","").replace(" ","").replace("-","")
+        filename=str(name)+"_"+str(timestamp)+str(random.randint(1000, 9999))+"."+str(ext)
+        return filename
+
+    def get_follower_list(self, id, user_id):
+        status, data = self.dao.get_follower_list(id, user_id, "follow")
+        return status, data
+
+    def get_following_list(self, id, user_id):
+        status, data = self.dao.get_following_list(id, user_id, "follow")
+        return status, data
+
+    def insert_song_data(self,song_details,user_id):
+        status, message = self.dao.insert_song_data(song_details,user_id)
+        return status,message
+
+    def get_song_data(self,user_id):
+        status, message,data = self.dao.get_song_data(user_id)
+        return status,message,data

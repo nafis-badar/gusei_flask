@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask,send_from_directory
 from flask import request
 from com.gusei.dbConnections.DbConnection import DbConnection
 from com.gusei.utils.utils import Utils
@@ -30,8 +30,8 @@ puplic_domain_list=config_dic.get('puplic_domain_list').split(' ')
 
 
 def validateSession(sessionId,email,ip_add):
-    if sessionId is None or service.validateSession(sessionId,email,ip_add) is None:
-        return None
+    if service.validateSession(sessionId,email,ip_add) is None:
+        return None, None, None
     else:
         return sessionId,email,ip_add
 
@@ -62,7 +62,8 @@ def user_singup():
 @app.route("/update", methods=['PUT'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def update_user():
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     else:
@@ -104,7 +105,8 @@ def login():
 @app.route("/logout", methods=['GET'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def logout():
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     status = service.logoutUser(sessionID,email,ip_add)
@@ -117,14 +119,15 @@ def logout():
 @app.route("/admin/user/create", methods=['POST'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def admin_create_user():
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     else:
         content = request.json
         try:
             user_id=service.get_id_by_email(email)
-            status, message= service.insert_user_info(content,user_id)
+            status, message, email = service.admin_insert_user_info(content,user_id)
             if status == "success":
                 if status == "success":
                     return {"message": "User created.", "status": status,
@@ -142,7 +145,8 @@ def admin_create_user():
 @app.route("/admin/user/update/<int:id>", methods=['PUT'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def admin_update_user(id):
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     else:
@@ -168,7 +172,8 @@ def admin_update_user(id):
 @app.route("/admin/user/delete/<int:id>", methods=['DELETE'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def delete(id):
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if (sessionID is None or len(sessionID) == 0):
         return {"message": "invalid request", "status": "error"}, 401
     user_id = service.get_id_by_email(email)
@@ -182,13 +187,14 @@ def delete(id):
 @app.route("/follow/<int:id>", methods=['GET'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def follow(id):
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     else:
         try:
             user_id = service.get_id_by_email(email)
-            status, message = service.follow(id,user_id)
+            status, message = service.follow(user_id, id)
             if status == "success":
                 if status == "success":
                     return {"message": message, "status": status,
@@ -203,11 +209,66 @@ def follow(id):
             return {"message": message_dict.get('exception_error'), "status": "Failed"}, 400
 
 
+@app.route("/upload_karaoke", methods=['post'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def upload_karaoke():
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
+        file=request.files['karaoke']
+        if file is not None:
+            if file.filename == '':
+                return {"message": "invalid request", "status": "error"}, 401
+            else:
+                status,message,file_url,filename,audio_id,duration=service.karaoke_uploader(karaoke_folder_path,file,email)
+                if status == "success":
+                    return {"message": str(message),"audio_id":audio_id,"audio_url":file_url,"filename":filename,"duration":duration+"s","status": 200}, 200
+                else:
+                    return {"message": str(message), "status": 400}, 400
+        else:
+            return {"message": "something went wrong", "status": 400}, 400
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke "+ str(e))
+        return {"message": "something went wrong", "status": 400}, 400
+
+@app.route("/karaoke/<filename>", methods=['GET'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def get_file(filename):
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
+        else:
+            return send_from_directory(karaoke_folder_path,filename),200
+
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke "+ str(e))
+        return {"message": "something went wrong", "status": 400}, 400
+
+
+@app.route("/admin/user/block/<int:id>", methods=['GET'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def block(id):
+    sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),
+                                               request.remote_addr)
+    if (sessionID is None or len(sessionID) == 0):
+        return {"message": "invalid request", "status": "error"}, 401
+    user_id = service.get_id_by_email(email)
+    status,messages = service.blockUser(id,user_id)
+    print(status)
+    if (status == "success"):
+        return {"message": str(messages), "status": 200}, 200
+    else:
+        return {"message": messages, "status": 400}, 400
+
 @app.route("/follower_list/<int:id>", methods=['GET'])
 @app.route("/follower_list", methods=['GET'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
 def follower_list(id=None):
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),str(request.remote_addr))
     if sessionID is None or len(sessionID) == 0:
         return {"message": "invalid request", "status": "error"}, 401
     else:
@@ -250,51 +311,48 @@ def following_list(id=None):
             log.error("Exception While user signup " + str(e))
             return {"message": message_dict.get('exception_error'), "status": "Failed"}, 400
 
-
-@app.route("/upload_karaoke", methods=['post'])
+@app.route("/upload_song_details", methods=['post'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
-def upload_karaoke():
+def upload_song_detail():
     try:
-        sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
-        if sessionID is None or len(sessionID) == 0:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
             return {"message": "invalid request", "status": "error"}, 401
-        file=request.files['karaoke']
-        if file is not None:
-            if file.filename == '':
-                return {"message": "invalid request", "status": "error"}, 401
+        json_data=request.json
+        if json_data is not None:
+            user_id = service.get_id_by_email(email)
+            status, message=service.insert_song_data(json_data,user_id)
+            if status=="success":
+                return {"message": "successfully uploaded","status":200}, 200
             else:
-                status,message=service.karaoke_uploader(karaoke_folder_path,file,email)
-                if status == "success":
-                    return {"message": str(message), "status": 200}, 200
-                else:
-                    return {"message": str(message), "status": 400}, 400
+                return {"message": "something went wrong","status":400}, 400
         else:
-            return {"message": "something went wrong", "status": 400}, 400
+            return {"message": "invalid request", "status": "error"}, 401
     except Exception as e:
         log.exception("")
         log.error("Exception While upload karaoke "+ str(e))
         return {"message": "something went wrong", "status": 400}, 400
 
-@app.route("/admin/user/block/<int:id>", methods=['GET'])
+
+@app.route("/get_song_details", methods=['GET'])
 @cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
-def block(id):
-    sessionID, email,ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
-    if (sessionID is None or len(sessionID) == 0):
-        return {"message": "invalid request", "status": "error"}, 401
-    user_id = service.get_id_by_email(email)
-    status,messages = service.blockUser(id,user_id)
-    print(status)
-    if (status == "success"):
-        return {"message": messages, "status": 200}, 200
-    else:
-        return {"message": messages, "status": 400}, 400
+def get_songs_detail():
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
 
-# @app.route("/get_my_ip", methods=["GET"])
-# def get_my_ip():
-#     return jsonify({'ip': request.remote_addr}), 200
+        user_id = service.get_id_by_email(email)
+        status, message, data = service.get_song_data(user_id)
+        if status == "success":
+            return {"message": "successfully uploaded","song_details":data,"status": 200}, 200
+        else:
+            return {"message": "something went wrong", "status": 400}, 400
 
-
-
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke " + str(e))
+        return {"message": "something went wrong", "status": 400}, 400
 
 
 if __name__ == '__main__':

@@ -120,6 +120,8 @@ class Dao:
             query_string = "select * from " + str(tb_name) + " where user_email = %(email)s and is_blocked=0 and is_deleted=0"
             cursor.execute(query_string, {"email": email})
             is_email_exists = cursor.fetchall()
+            print(email)
+            print(is_email_exists)
             if is_email_exists is not None and len(is_email_exists) > 0:
                 return "success", is_email_exists[0]['password'], is_email_exists[0]['session_list'],is_email_exists[0]['ip_list']
             else:
@@ -201,11 +203,13 @@ class Dao:
             query_string = "select * from " + str(tb_name) + " where user_email = %(email)s"
             cursor.execute(query_string, {"email": email})
             data = cursor.fetchall()
+
             if data is not None and len(data) > 0:
                 sessions = data[0]['session_list']
                 session_list = json.loads(sessions)
                 ip=data[0]['ip_list']
                 ip_list = json.loads(ip)
+                print(ip_list)
                 if sessionId in session_list:
                     if ip_add in ip_list:
                         return "success"
@@ -213,6 +217,9 @@ class Dao:
                         return None
                 else:
                     return None
+            else:
+                return None
+
         except Exception as e:
             print(e)
             return None
@@ -301,23 +308,28 @@ class Dao:
             if connection is not None:
                 connection.close()
 
-    def insert_karaoke(self,filename,user_id):
+    def insert_karaoke(self,filename,original_filename,user_id,duration):
         connection = None
         try:
             connection = DbConnection.getDbConnection()
             cursor = connection.cursor()
-            query_karaoke_string = "INSERT INTO karaoke(user_id, karaoke_filename,is_deleted) " \
-                                  "VALUES (%s, %s, %s)"
-            cursor.execute(query_karaoke_string, (user_id, filename,0))
+            query_karaoke_string = "INSERT INTO karaoke(user_id, karaoke_filename,original_filename,duration,is_confirm,is_deleted) " \
+                                  "VALUES (%s, %s, %s,%s, %s, %s)"
+            cursor.execute(query_karaoke_string, (user_id, filename,original_filename,duration,0,0))
+            last_id=cursor.lastrowid
+            get_karaoke = "Select original_filename, karaoke_filename,duration from karaoke Where ID=%(id)s"
+            cursor.execute(get_karaoke, {"id":last_id})
+            data=cursor.fetchall()
+
             connection.commit()
             cursor.close()
-            return "success", "Successfully uploaded"
+            return "success", "Successfully uploaded",data,last_id
         except Exception as e:
-            return "Failed", "Something went wrong" + str(e)
+            return "Failed", "Something went wrong" + str(e),[],""
         finally:
             if connection is not None:
                 connection.close()
-    
+
     def get_follower_list(self,id,user_id,tb_name):
         connection = None
         try:
@@ -339,7 +351,7 @@ class Dao:
                 data = cursor.fetchall()
                 return "success",data
             else:
-                return "Failed","data not found" 
+                return "Failed","data not found"
         except Exception as e:
             return "Failed", "Something went wrong" + str(e)
         finally:
@@ -373,4 +385,44 @@ class Dao:
             if connection is not None:
                 connection.close()
 
-            
+    def insert_song_data(self,song_details,user_id):
+        connection = None
+        try:
+            connection = DbConnection.getDbConnection()
+            cursor = connection.cursor()
+
+            query = "INSERT INTO songs (user_id,karaoke_id, title,artist,creator,tag, lyrics_lng,song_lng,Genre," \
+                    "lyrics,is_deleted) VALUES (%s, %s,%s, %s,%s,%s,%s,%s,%s,%s,%s)"
+
+            cursor.execute(query, (user_id, song_details.get("audio_id"), song_details.get("title"),
+                                   song_details.get("artist"), song_details.get("creator"),
+                                   json.dumps(song_details.get("tag")),song_details.get("lyrics_language"),
+                                   song_details.get("song_language"), song_details.get("Genre"),
+                                   json.dumps(song_details.get("lyrics")), 0))
+            connection.commit()
+            cursor.close()
+
+            return "success","successfully uploaded"
+        except Exception as e:
+            return "Failed", "Something went wrong" + str(e)
+        finally:
+            if connection is not None:
+                connection.close()
+    def get_song_data(self,user_id):
+        try:
+            connection = DbConnection.getDbConnection()
+            cursor = connection.cursor()
+            query = "Select * from songs where user_id=%(user_id)s"
+            cursor.execute(query, {"user_id":user_id})
+            data=cursor.fetchall()
+            if data is not None and len(data)>0:
+                connection.commit()
+                cursor.close()
+                return "success", "successfully uploaded",data
+            else:
+                return "Failed", "data not found in db",[]
+        except Exception as e:
+            return "Failed", "Something went wrong" + str(e),[]
+        finally:
+            if connection is not None:
+                connection.close()
