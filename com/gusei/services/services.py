@@ -324,3 +324,15 @@ class Service:
     def delete_karaoke(self,id):
         status,messages=self.dao.delete_karaoke(id,"karaoke","songs")
         return status , messages
+    
+    def update_song_data(self,song_details,user_id,id):
+        status, message = self.dao.update_song_data(song_details,user_id,id,"songs")
+        return status,message
+    
+    def user_list(self):
+        status, data = self.user.user_list("user_registered")
+        return status,data
+    
+    def user_details(self,id):
+        status, data = self.user.user_details(id,"user_registered")
+        return status,data

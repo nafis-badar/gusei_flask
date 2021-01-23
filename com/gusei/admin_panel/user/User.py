@@ -168,4 +168,51 @@ class User:
         else:
             return "failed", "Something went Fishy"
 
+    
+    def user_list(self,table_name):
+        try:
+            print("abc")
+            connection = DbConnection.getDbConnection()
+            cursor = connection.cursor()
+            print("xyz")
+            query_string = "select * from " + str(table_name)
+            print(query_string)
+            cursor.execute(query_string)
+            data=cursor.fetchall()
+            if data is not None and len(data) > 0:
+                cursor.close()
+                connection.commit()
+                return "success", data
+            else:
+                return "Failed","Somnething went wrong"
+        except Exception as e:
+                    print(e)
+                    return "Failed", "Something went wrong"
+
+        finally:
+            if connection is not None:
+                connection.close()
+
+    def user_details(self,id,table_name):
+        try:
+            connection = DbConnection.getDbConnection()
+            cursor = connection.cursor()
+            query_string = "select * from " + str(table_name) +" WHERE ID=%(id)s"
+            print(query_string)
+            cursor.execute(query_string,{"id":id})
+            data=cursor.fetchall()
+            if data is not None and len(data) > 0:
+                cursor.close()
+                connection.commit()
+                return "success", data
+            else:
+                return "Failed","Somnething went wrong"
+        except Exception as e:
+                    print(e)
+                    return "Failed", "Something went wrong"
+
+        finally:
+            if connection is not None:
+                connection.close()
+
 

@@ -499,3 +499,25 @@ class Dao:
                         connection.close()
         else:
             return "failed","Something went Fishy"
+
+    def update_song_data(self,song_details,user_id,id,tb_name):
+        connection = None
+        try:
+            connection = DbConnection.getDbConnection()
+            cursor = connection.cursor()
+            query_string = "select * from " + str(tb_name) + " where karaoke_id=%(id)s and is_deleted=0"
+            cursor.execute(query_string,{"id":id})
+            data = cursor.fetchall()
+            if data is not None and len(data) > 0:
+                query_update_string1="UPDATE " + str(tb_name) + " SET title = %(title)s ,artist=%(artist)s,creator=%(creator)s,tag=%(tag)s,lyrics_lng=%(lyrics_lng)s,song_lng=%(song_lng)s,Genre=%(Genre)s,updated_by=%(updated_by)s WHERE karaoke_id =%(id)s"
+                cursor.execute(query_update_string1,{"title":song_details.get("title"),"artist":song_details.get("artist"),"creator":song_details.get("creator"),"tag": json.dumps(song_details.get("tag")),"lyrics_lng":song_details.get("lyrics_language"),"song_lng":song_details.get("song_language"),"Genre":song_details.get("Genre"),"updated_by":user_id,"id":id})
+                connection.commit()
+                cursor.close()
+                return "success","successfully updated"
+            else:
+                return "Failed","Record not found"
+        except Exception as e:
+            return "Failed", "Something went wrong" + str(e)
+        finally:
+            if connection is not None:
+                connection.close()

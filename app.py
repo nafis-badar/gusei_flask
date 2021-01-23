@@ -383,5 +383,65 @@ def karaoke_delete(id):
         return {"message": messages, "status": 400}, 400
 
 
+@app.route("/update_song_details/<int:id>", methods=['POST'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def update_song_detail(id):
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
+        json_data=request.json
+        if json_data is not None:
+            user_id = service.get_id_by_email(email)
+            status, message=service.update_song_data(json_data,user_id,id)
+            if status=="success":
+                return {"message": "successfully updated","status":200}, 200
+            else:
+                return {"message": "something went wrong","status":400}, 400
+        else:
+            return {"message": "invalid request", "status": "error"}, 401
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke "+ str(e))
+        return {"message": "something went wrong", "status": 400}, 400
+
+@app.route("/admin/user/<int:id>", methods=['GET'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def user_details(id):
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
+        else:
+            status,data=service.user_details(id)
+            if status=="success":
+                return {"data": data,"status":200}, 200
+            else:
+                return {"message": "something went wrong","status":400}, 400
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke "+ str(e))
+        return {"message": "something went wrong", "status": 400}, 400
+
+@app.route("/admin/user_list", methods=['GET'])
+@cross_origin(origin='localhost', headers=['Content- Type', 'Authorization'])
+def user_list():
+    try:
+        sessionID, email, ip_add = validateSession(request.headers.get('session'), request.headers.get('email'),request.remote_addr)
+        if sessionID is None or len(sessionID) == 0 or email is None or len(email) == 0:
+            return {"message": "invalid request", "status": "error"}, 401
+            print("xyz")
+        else:
+            status,data=service.user_list()
+            if status=="success":
+                return {"data": data,"status":200}, 200
+            else:
+                return {"message": "something went wrong","status":400}, 400
+    except Exception as e:
+        log.exception("")
+        log.error("Exception While upload karaoke "+ str(e))
+        return {"message": "something went wrong", "status": 400}, 400
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5010)
